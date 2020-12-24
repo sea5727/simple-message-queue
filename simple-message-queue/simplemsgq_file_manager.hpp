@@ -67,16 +67,23 @@ namespace simplemsgq
 
         }
 
-        std::tuple<int /*filefd*/, long int /*send_position*/, int /*sendsize*/>
+
+        std::tuple< int         /*filefd*/, 
+                    long int    /*send_position*/, 
+                    int         /*sendsize*/>
         select_data(
-            // using filefd
-            const char * buffer, 
-            unsigned int len ){
+            unsigned int offset, 
+            unsigned int count ){
 
-            std::cout << "run select start, len: " << len << std::endl;    
-            auto request_index = std::stoi(buffer);
-
+            auto request_index = offset;
+            
+            if(mmaps.empty()){
+                // throw std::runtime_error("mmap is empty TODO send fail"); // TODO sendfail
+                return std::make_tuple(-1, -1, 0);
+            }
             auto last = mmaps.back();
+            auto f = mmaps.front();
+            
             auto last_fileindex = std::get<0>(last);
             auto list_filesize = std::get<1>(last);
             auto last_indexdata = std::get<2>(last);
@@ -84,9 +91,12 @@ namespace simplemsgq
             auto next_index = last_indexdata->header.next_index;
 
             if(last_fileindex + next_index -1 < request_index){
-                throw std::runtime_error("index over fail"); // TODO sendfail
+                return std::make_tuple(-1, -1, 0);
+                // throw std::runtime_error("index over fail"); // TODO sendfail
             }
-
+            std::cout << "last_fileindex: "  << last_fileindex << std::endl;
+            std::cout << "next_index: "  << next_index << std::endl;
+            std::cout << "request_index: "  << request_index << std::endl;
 
             auto lower = std::lower_bound(mmaps.rbegin(), mmaps.rend(), std::make_tuple(request_index, 0, nullptr),
                 [](const indexmmap_info & a, const indexmmap_info & b){
@@ -94,20 +104,23 @@ namespace simplemsgq
                 });
 
             if(lower == mmaps.rend()){
-                throw std::runtime_error("index not found"); // TODO sendfail
+                return std::make_tuple(-1, -1, 0);
+                // throw std::runtime_error("index not found"); // TODO sendfail
             }
             auto file_index = std::get<0>(*lower);
             auto file_size = std::get<1>(*lower);
             auto find_data = std::get<2>(*lower);
             auto searched = request_index - file_index;
             auto filename = FileManagerBuilder::make_datafilename(basepath, file_index);
-
             auto send_size = find_data->bodys[searched].size;
             auto send_position = find_data->bodys[searched].position;
             auto filefd = open(filename.c_str(), O_RDONLY, 0644 ); 
 
-            if(filefd == -1)
-                throw std::runtime_error("invalid directory path" + basepath);
+            if(filefd == -1){
+                // throw std::runtime_error("invalid directory path" + basepath);
+                return std::make_tuple(-1, -1, 0);
+            }
+                
 
             return std::make_tuple(filefd, send_position, send_size);
             

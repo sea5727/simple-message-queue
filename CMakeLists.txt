@@ -10,7 +10,10 @@ enable_testing()
 link_libraries(boost_thread boost_filesystem pthread)
 
 
-add_executable(simple-message-queue main.cpp)
+# add_executable(simple-message-queue-chat chat_msgq.cpp)
+add_executable(simple-message-queue-custom custom_msgq.cpp)
+add_executable(client-custom client_custom.cpp)
+# add_executable(client client.cpp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

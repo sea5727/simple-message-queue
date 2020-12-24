@@ -22,18 +22,31 @@ namespace simplemsgq
             socket.non_blocking(true);
             // socket.native_non_blocking(true);
         }
-
         void
         do_read(
             boost::asio::ip::tcp::socket & socket, 
-            const char *buffer, 
-            const unsigned int len) override{
+            SIMPLEMSGQ_HEADER & header,
+            char * body) override{
             std::cout << "FileInserter do_read callback\n";
             if(fm){
-                (*fm).insert_data(buffer, len);
+                auto bodylen = header.get_body_len();
+                (*fm).insert_data(body, bodylen);
                 // TODO SEND RESPONSE
             }
             //  (*m_manager).insert_data(buffer, len);
         }
+
+        // void
+        // do_read(
+        //     boost::asio::ip::tcp::socket & socket, 
+        //     const char *buffer, 
+        //     const unsigned int len) override{
+        //     std::cout << "FileInserter do_read callback\n";
+        //     if(fm){
+        //         (*fm).insert_data(buffer, len);
+        //         // TODO SEND RESPONSE
+        //     }
+        //     //  (*m_manager).insert_data(buffer, len);
+        // }
     };
 }

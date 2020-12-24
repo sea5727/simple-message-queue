@@ -5,29 +5,11 @@
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
 
+#include "simplemsgq_define.hpp"
 #include "simplemsgq_asio_interface.hpp"
 
 namespace simplemsgq
 {
-    class TCP_CUSTOM_HEADER{
-    public:
-        char frame[2];
-        uint16_t length;
-        uint32_t status_code;
-        uint32_t msgname;
-        uint32_t msgtype;
-        uint64_t sequence_number;
-    };
-
-    constexpr static const unsigned int FRAME_SIZE = sizeof(uint32_t);
-    constexpr static const unsigned int HEADER_SIZE = sizeof(TCP_CUSTOM_HEADER);
-
-    class TCP_CUSTOM_BODY{
-    public:
-        uint32_t offset;
-        uint32_t size;
-    };
-
     class TcpSessionCustom : public std::enable_shared_from_this<TcpSessionCustom>{
     private:
         boost::asio::ip::tcp::socket socket;
@@ -46,18 +28,30 @@ namespace simplemsgq
     private:
         void 
         do_read_frame(SimplemsgqWorker * worker) {
+            std::cout << "do_read_frame start exactly FRAME_SIZE : " << FRAME_SIZE << std::endl;
             auto self(this->shared_from_this());
+
+            // boost::asio::async_read(socket, boost::asio::buffer(buffer), 
+            //     [](const boost::system::error_code & error, const size_t len){
+
+            // });
+
             boost::asio::async_read( socket,  boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE),
-                [self, this, worker](const boost::system::error_code & error, std::size_t len){
+                [self, this, worker](const boost::system::error_code & error, const std::size_t & len){
                     if(error){ // TODO connection clear
                         return;
                     }
 
-                    TCP_CUSTOM_HEADER * header = (TCP_CUSTOM_HEADER *)buffer;
-                    if((header->frame[0] & 0xff) == 0xfe && (header->frame[1] & 0xff) == 0xfe){
-                        do_read_body(worker, header->length);
+                    auto frame = SIMPLEMSGQ_FRAME{buffer};
+
+                    if(frame.check()){
+                        frame.ntoh();
+                        auto packet_len = frame.packet_len;
+                        std::cout << "check succ : " << std::dec << packet_len << std::endl;
+                        do_read_body(worker, packet_len);
                     }
                     else{
+                        std::cout << "check fail\n";
                         do_read_frame(worker);
                     }
 
@@ -65,15 +59,27 @@ namespace simplemsgq
         }
 
         void
-        do_read_body(SimplemsgqWorker * worker, u_int16_t bodylen) {
+        do_read_body(SimplemsgqWorker * worker, unsigned int bodylen) {
             auto self(shared_from_this());
-            boost::asio::async_read( socket,  boost::asio::buffer(buffer), boost::asio::transfer_exactly(bodylen),
+            boost::asio::async_read( socket,  boost::asio::buffer(boost::asio::buffer(buffer) + FRAME_SIZE), boost::asio::transfer_exactly(bodylen - FRAME_SIZE),
                 [self, this, worker](const boost::system::error_code & error, std::size_t len){
                     if(error){
                         // TODO connection clear
                         return;
                     }
-                    //proc body
+
+                    SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)buffer;
+                    header->ntoh();
+                    std::cout << "count : " << header->count << std::endl;
+                    std::cout << "offset : " << header->offset << std::endl;
+                    std::cout << "sequence : " << header->sequence << std::endl;
+                    std::cout << "type : " << header->type << std::endl;
+                    std::cout << "packet_len : " << header->frame.packet_len << std::endl;
+                    
+
+                    worker->do_read(socket, *header, buffer + sizeof(SIMPLEMSGQ_HEADER));
+
+                    
                     do_read_frame(worker);
                 });
         }

@@ -3,11 +3,12 @@
 #include "simple-message-queue/simplemsgq.hpp"
 
 int main(int, char**) {
+
     std::cout << "Hello, world!\n";
 
     auto thread_pool = std::vector<std::thread>{};
 
-    auto manager = simplemsgq::FileManagerBuilder::build("/home/ysh8361");
+    auto manager = simplemsgq::FileManagerBuilder::build("/home/ysh8361/msgq/custom");
     auto inserter = simplemsgq::FileInserter{manager};
     auto selecter = simplemsgq::FileSelecter{manager};
 
@@ -16,7 +17,7 @@ int main(int, char**) {
     auto i_io = boost::asio::io_service{1};
     auto i_work = boost::asio::io_service::work{i_io};
 
-    auto i_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionChat>(i_io, i_port);
+    auto i_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionCustom>(i_io, i_port);
     i_listener.run(&inserter);
 
     thread_pool.emplace_back([&]{
@@ -29,7 +30,7 @@ int main(int, char**) {
     auto s_io = boost::asio::io_service{1};
     auto s_work = boost::asio::io_service::work{s_io};
 
-    auto s_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionChat>(s_io, s_port);
+    auto s_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionCustom>(s_io, s_port);
     s_listener.run(&selecter);
 
     thread_pool.emplace_back([&]{

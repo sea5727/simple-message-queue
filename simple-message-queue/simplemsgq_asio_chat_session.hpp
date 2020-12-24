@@ -36,7 +36,7 @@ namespace simplemsgq
                     auto data = buffer.c_str();
                     auto size = buffer.length();
                     
-                    worker->do_read(socket, data, size);
+                    // worker->do_read(socket, data, size); // TODO do_read를 다른 interface로 교체 필요
 
                     buffer.clear();
                     do_read(worker);
