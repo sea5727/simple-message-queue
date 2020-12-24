@@ -3,6 +3,9 @@
 #include "simplemsgq_asio_interface.hpp"
 #include "simplemsgq_file_manager.hpp"
 
+#include <boost/asio.hpp>
+#include <boost/asio/socket_base.hpp>
+
 namespace simplemsgq
 {
     class FileInserter : public SimplemsgqWorker{
@@ -16,7 +19,8 @@ namespace simplemsgq
         void
         do_accept(boost::asio::ip::tcp::socket & socket) override{
             // TODO socket option settiing...
-            std::cout << "FileInserter do_accept callback\n";
+            socket.non_blocking(true);
+            // socket.native_non_blocking(true);
         }
 
         void

@@ -8,7 +8,6 @@
 #include <vector>
 #include <boost/filesystem.hpp>
 #include <exception>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -31,6 +30,8 @@ namespace simplemsgq
             std::vector<indexmmap_info> & mmaps) 
                 : basepath(basepath)
                 , mmaps(mmaps) { }
+
+
         void 
         insert_data(
             const char * buffer, 
@@ -68,6 +69,7 @@ namespace simplemsgq
 
         std::tuple<int /*filefd*/, long int /*send_position*/, int /*sendsize*/>
         select_data(
+            // using filefd
             const char * buffer, 
             unsigned int len ){
 
