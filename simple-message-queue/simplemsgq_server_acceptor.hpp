@@ -1,29 +1,29 @@
 #pragma once
 
-#include "simplemsgq_asio_interface.hpp"
+#include "simplemsgq_worker_interface.hpp"
 
 
 namespace simplemsgq
 {
     template<typename TyServer>
-    class TcpAcceptor
+    class ServerAcceptor
     {
     private:
         boost::asio::ip::tcp::acceptor acceptor;
         boost::asio::ip::tcp::socket socket;
     public:
 
-        TcpAcceptor(boost::asio::io_service & io_service, uint16_t port)
+        ServerAcceptor(boost::asio::io_service & io_service, uint16_t port)
             : acceptor(io_service, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
             , socket(io_service) { }
 
         void
-        run(SimplemsgqWorker * worker){
+        run(IFWorker * worker){
             do_accept(worker);
         }
     private:
         void
-        do_accept(SimplemsgqWorker * worker){
+        do_accept(IFWorker * worker){
             
             acceptor.async_accept(socket, [worker, this](const boost::system::error_code & error) {
                 if(error){

@@ -6,7 +6,7 @@
 #include <boost/asio.hpp>
 
 #include "simplemsgq_define.hpp"
-#include "simplemsgq_asio_interface.hpp"
+#include "simplemsgq_worker_interface.hpp"
 
 namespace simplemsgq
 {
@@ -22,12 +22,12 @@ namespace simplemsgq
         }
 
         void 
-        run(SimplemsgqWorker * worker) {
+        run(IFWorker * worker) {
             do_read_frame(worker);
         }
     private:
         void 
-        do_read_frame(SimplemsgqWorker * worker) {
+        do_read_frame(IFWorker * worker) {
             std::cout << "do_read_frame start exactly FRAME_SIZE : " << FRAME_SIZE << std::endl;
             auto self(this->shared_from_this());
 
@@ -59,7 +59,7 @@ namespace simplemsgq
         }
 
         void
-        do_read_body(SimplemsgqWorker * worker, unsigned int bodylen) {
+        do_read_body(IFWorker * worker, unsigned int bodylen) {
             auto self(shared_from_this());
             boost::asio::async_read( socket,  boost::asio::buffer(boost::asio::buffer(buffer) + FRAME_SIZE), boost::asio::transfer_exactly(bodylen - FRAME_SIZE),
                 [self, this, worker](const boost::system::error_code & error, std::size_t len){

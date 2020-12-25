@@ -4,12 +4,12 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
-
 #include "simplemsgq_define.hpp"
+#include "simplemsgq_client_consumer.hpp"
 
 namespace simplemsgq
 {
-    class TcpClient{
+    class Client{
     private:
         boost::asio::io_service & io_service;
         boost::asio::ip::tcp::socket socket;
@@ -18,10 +18,11 @@ namespace simplemsgq
         unsigned int offset;
         unsigned int count;
         char buffer[8096];
-        
+        ClientConsumer * worker;
+
     public:
-        TcpClient() = default;
-        TcpClient(boost::asio::io_service & io_service, const std::string & host, const std::string & port, unsigned int offset, unsigned int count)
+        Client() = default;
+        Client(boost::asio::io_service & io_service, const std::string & host, const std::string & port, unsigned int offset, unsigned int count)
             : socket{io_service} 
             , io_service{io_service}
             , host{host}
@@ -29,8 +30,73 @@ namespace simplemsgq
             , offset{offset}
             , count{count}{ }
         
+
+
         void
-        run(){
+        init(){
+            auto resolver = boost::asio::ip::tcp::resolver{io_service};
+            auto query = boost::asio::ip::tcp::resolver::query{host, port};
+            auto endpoint_iterator = resolver.resolve(query);
+            auto conn = boost::asio::connect(socket, endpoint_iterator);
+            // socket.non_blocking(true);
+        }
+        void
+        do_poll(unsigned int timeout_milli){
+            SIMPLEMSGQ_HEADER request;
+            request.init();
+            request.frame.packet_len = sizeof(SIMPLEMSGQ_HEADER);
+            request.sequence = 0;
+            request.type = 0;
+            request.name = 0;
+            request.code = 0;
+            request.offset = offset;
+            request.count = count;
+            request.hton();
+
+
+            auto write_len = boost::asio::write(socket, boost::asio::buffer(&request, sizeof(request)));
+            std::cout << "write len : " << write_len << std::endl;
+            boost::asio::async_read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE), 
+                [](const boost::system::error_code & error, const size_t len){
+                    std::cout << "async_read!!\n";
+                });
+            std::cout << "run_for start\n";
+            io_service.run_for(std::chrono::milliseconds(timeout_milli));
+            std::cout << "run_for end\n";
+
+  
+
+            
+
+            // std::cout << "frame_len : " << frame_len << std::endl;
+
+            // auto frame = SIMPLEMSGQ_FRAME{buffer}; // copy
+
+            // if(!frame.check()){
+            //     std::cout << "frame check fail\n";
+            //     return;
+            // }
+            // frame.ntoh();
+            // auto packet_len = frame.packet_len - FRAME_SIZE;
+            // auto read_len = boost::asio::read(socket, (boost::asio::buffer(buffer) + FRAME_SIZE), boost::asio::transfer_exactly(packet_len));
+            // std::cout << "read len : " <<  read_len << std::endl;
+
+            // SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)buffer;
+            // SIMPLEMSGQ_PACKET * packet = (SIMPLEMSGQ_PACKET *)buffer;
+            // header->ntoh();
+            // std::cout << "sequence : " << header->sequence << std::endl;
+            // std::cout << "type : " << header->type << std::endl;
+            // std::cout << "name : " << header->name << std::endl;
+            // std::cout << "code : " << header->code << std::endl;
+            // std::cout << "offset : " << header->offset << std::endl;
+            // std::cout << "count : " << header->count << std::endl;
+
+
+                        
+        }
+        void
+        run(ClientConsumer * worker){
+            this->worker = worker;
             do_connect();
         }
         void
@@ -76,6 +142,7 @@ namespace simplemsgq
                     return;
                 }
                 SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)buffer;
+                SIMPLEMSGQ_PACKET * packet = (SIMPLEMSGQ_PACKET *)buffer;
                 header->ntoh();
                 std::cout << "sequence : " << header->sequence << std::endl;
                 std::cout << "type : " << header->type << std::endl;
@@ -83,6 +150,8 @@ namespace simplemsgq
                 std::cout << "code : " << header->code << std::endl;
                 std::cout << "offset : " << header->offset << std::endl;
                 std::cout << "count : " << header->count << std::endl;
+
+                worker->do_select(*packet);
                 do_read_frame();
             });
         }

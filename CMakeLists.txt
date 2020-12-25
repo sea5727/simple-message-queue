@@ -12,7 +12,8 @@ link_libraries(boost_thread boost_filesystem pthread)
 
 # add_executable(simple-message-queue-chat chat_msgq.cpp)
 add_executable(simple-message-queue-custom custom_msgq.cpp)
-add_executable(client-custom client_custom.cpp)
+add_executable(consumer-test client_consumer_test.cpp)
+add_executable(producer-test client_producer_test.cpp)
 # add_executable(client client.cpp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

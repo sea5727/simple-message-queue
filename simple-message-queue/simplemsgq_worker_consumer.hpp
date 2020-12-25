@@ -1,24 +1,25 @@
 #pragma once
 
+#include <boost/asio.hpp>
 #include <sys/sendfile.h>
 
-#include "simplemsgq_asio_interface.hpp"
+#include "simplemsgq_worker_interface.hpp"
 #include "simplemsgq_file_manager.hpp"
 
 
 namespace simplemsgq{
-    class FileSelecter : public SimplemsgqWorker{
+    class ConsumerWorker : public IFWorker{
     private:
         std::shared_ptr<FileManager> fm;
     public:
-        FileSelecter() = default;
-        FileSelecter(std::shared_ptr<FileManager> fm)
+        ConsumerWorker() = default;
+        ConsumerWorker(std::shared_ptr<FileManager> fm)
             : fm{fm} { }
 
         void
         do_accept(boost::asio::ip::tcp::socket & socket) override{
             // TODO socket option settiing...
-            std::cout << "FileSelecter do_accept callback\n";
+            std::cout << "ConsumerWorker do_accept callback\n";
         }
 
         void
@@ -54,6 +55,7 @@ namespace simplemsgq{
                 std::cout << "send response.offset : " << response.offset << std::endl;
                 std::cout << "send response.count : " << response.count << std::endl;
                 // TODO SEND RESPONSE send header
+                std::this_thread::sleep_for(std::chrono::seconds(2));
                 boost::asio::async_write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), 
                     [=](const boost::system::error_code & error, const size_t len){
                     std::cout << "async_write  :"  << error.message()  << ", len :" << len << std::endl;
@@ -65,7 +67,7 @@ namespace simplemsgq{
 
             }
             else {
-                std::cout << "FileSelecter do_read callback fm false\n";
+                std::cout << "ConsumerWorker do_read callback fm false\n";
             }
         }
 

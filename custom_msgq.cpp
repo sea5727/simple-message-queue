@@ -9,16 +9,16 @@ int main(int, char**) {
     auto thread_pool = std::vector<std::thread>{};
 
     auto manager = simplemsgq::FileManagerBuilder::build("/home/ysh8361/msgq/custom");
-    auto inserter = simplemsgq::FileInserter{manager};
-    auto selecter = simplemsgq::FileSelecter{manager};
+    auto producer = simplemsgq::ProducerWorker{manager};
+    auto consumer = simplemsgq::ConsumerWorker{manager};
 
 
     uint16_t i_port = 4444;
     auto i_io = boost::asio::io_service{1};
     auto i_work = boost::asio::io_service::work{i_io};
 
-    auto i_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionCustom>(i_io, i_port);
-    i_listener.run(&inserter);
+    auto i_listener = simplemsgq::ServerAcceptor<simplemsgq::TcpSessionCustom>(i_io, i_port);
+    i_listener.run(&producer);
 
     thread_pool.emplace_back([&]{
         i_io.run();
@@ -30,8 +30,8 @@ int main(int, char**) {
     auto s_io = boost::asio::io_service{1};
     auto s_work = boost::asio::io_service::work{s_io};
 
-    auto s_listener = simplemsgq::TcpAcceptor<simplemsgq::TcpSessionCustom>(s_io, s_port);
-    s_listener.run(&selecter);
+    auto s_listener = simplemsgq::ServerAcceptor<simplemsgq::TcpSessionCustom>(s_io, s_port);
+    s_listener.run(&consumer);
 
     thread_pool.emplace_back([&]{
         s_io.run();

@@ -8,13 +8,17 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include "simplemsgq_define.hpp"
-#include "simplemsgq_asio_interface.hpp"
+#include "simplemsgq_client_consumer.hpp"
+#include "simplemsgq_worker_interface.hpp"
+
 #include "simplemsgq_file_manager.hpp"
-#include "simplemsgq_file_inserter.hpp"
-#include "simplemsgq_file_selecter.hpp"
-#include "simplemsgq_asio_acceptor.hpp"
+#include "simplemsgq_worker_consumer.hpp"
+#include "simplemsgq_worker_producer.hpp"
+#include "simplemsgq_server_acceptor.hpp"
 #include "simplemsgq_asio_chat_session.hpp"
-#include "simplemsgq_asio_client.hpp"
+
+#include "simplemsgq_client.hpp"
+
 #include "simplemsgq_asio_custom_session.hpp"
 // #include "simplemsgq_simqclient.hpp"
 

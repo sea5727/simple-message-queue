@@ -5,7 +5,7 @@
 #include <boost/bind/bind.hpp>
 #include <boost/asio.hpp>
 
-#include "simplemsgq_asio_interface.hpp"
+#include "simplemsgq_worker_interface.hpp"
 
 namespace simplemsgq
 {
@@ -21,12 +21,12 @@ namespace simplemsgq
         }
 
         void 
-        run(SimplemsgqWorker * worker) {
+        run(IFWorker * worker) {
             do_read(worker);
         }
     private:
         void 
-        do_read(SimplemsgqWorker * worker) {
+        do_read(IFWorker * worker) {
             auto self(this->shared_from_this());
             boost::asio::async_read_until( socket, boost::asio::dynamic_buffer(buffer), "\n", 
                 [this, self, worker](const boost::system::error_code & error_code , size_t len){

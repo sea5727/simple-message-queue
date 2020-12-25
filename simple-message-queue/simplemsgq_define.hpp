@@ -46,8 +46,7 @@ namespace simplemsgq
         }
         void hton(){
             packet_len = htonl(packet_len);
-        }        
-        
+        }
     };
 
     // #define MAX_MSG_SIZE                            (8*1024)
@@ -93,6 +92,12 @@ namespace simplemsgq
         unsigned int get_body_len(){
             return frame.packet_len - sizeof(SIMPLEMSGQ_HEADER);
         }
+    };
+
+    class SIMPLEMSGQ_PACKET{
+    public:
+        SIMPLEMSGQ_HEADER header;
+        char * value;
     };
  
     class INDEX_HEADER{
