@@ -30,7 +30,7 @@ namespace simplemsgq
                     auto message = error.message();
                     return;
                 }
-                std::cout << "accept success\n";
+
                 worker->do_accept(socket);
                 std::make_shared<TyServer>(std::move(socket))->run(worker);
                 do_accept(worker);

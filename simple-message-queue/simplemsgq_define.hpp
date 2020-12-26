@@ -4,13 +4,36 @@
 
 namespace simplemsgq
 {
+    std::string now_str()
+    {
+        // Get current time from the clock, using microseconds resolution
+        const boost::posix_time::ptime now = 
+            boost::posix_time::microsec_clock::local_time();
+
+        // Get the time offset in current day
+        const boost::posix_time::time_duration td = now.time_of_day();
+
+        const long hours        = td.hours();
+        const long minutes      = td.minutes();
+        const long seconds      = td.seconds();
+        const long milliseconds = td.total_milliseconds() -
+                                ((hours * 3600 + minutes * 60 + seconds) * 1000);
+
+        char buf[40];
+        sprintf(buf, "%02ld:%02ld:%02ld.%03ld", 
+            hours, minutes, seconds, milliseconds);
+
+        return buf;
+    }
+    
     using connect_handler = std::function<void(const boost::system::error_code & , const boost::asio::ip::tcp::endpoint & )>;
     using read_handler = std::function<void(const boost::system::error_code & , const size_t &)>;
     using write_handler = std::function<void(const boost::system::error_code & , const size_t &)>;
     
     class Define{
     public:
-        static constexpr unsigned int SEGMENT_PACKET_COUNT = 8;
+        static constexpr unsigned int SEGMENT_PACKET_COUNT = 128;
+        // static constexpr EndiaHelper endianHelper;
     };
 
 
@@ -26,14 +49,18 @@ namespace simplemsgq
         }
         char frame[4]; //0xfb, 0xfc, 0xfd
         unsigned int packet_len;
-        void init(){
+        inline
+        void 
+        init(){
             frame[0] = 0xfb;
             frame[1] = 0xfc;
             frame[2] = 0xfd;
             frame[4] = 0xfe;
             packet_len = 0;
         }
-        bool check(){
+        inline
+        bool 
+        check(){
             if( (frame[0] & 0xff) == 0xfb && 
                 (frame[1] & 0xff) == 0xfc &&
                 (frame[2] & 0xff) == 0xfd){
@@ -41,13 +68,19 @@ namespace simplemsgq
             }
             return false;
         }
-        void ntoh(){
-            packet_len = ntohl(packet_len);
+        inline
+        void 
+        ntoh(){
+            packet_len = ::ntohl(packet_len);
         }
-        void hton(){
-            packet_len = htonl(packet_len);
+        inline
+        void 
+        hton(){
+            packet_len = ::htonl(packet_len);
         }
     };
+
+
 
     // #define MAX_MSG_SIZE                            (8*1024)
     class SIMPLEMSGQ_HEADER{
@@ -59,7 +92,10 @@ namespace simplemsgq
         int code;
         int offset;
         unsigned int count;
-        void init(){
+
+        inline
+        void 
+        init(){
             frame.init();
             sequence = 0;
             type = 0;
@@ -68,28 +104,36 @@ namespace simplemsgq
             offset = 0;
             count = 0;
         }
-        bool check(){
+        inline
+        bool 
+        check(){
             return frame.check();
         }
-        void ntoh(){
+        inline
+        void 
+        ntoh(){
             frame.ntoh();
-            sequence = ntohl(sequence);
-            type = ntohl(type);
-            name = ntohl(name);
-            code = ntohl(code);
-            offset = ntohl(offset);
-            count = ntohl(count);
+            sequence = ::ntohl(sequence);
+            type = ::ntohl(type);
+            name = ::ntohl(name);
+            code = ::ntohl(code);
+            offset = ::ntohl(offset);
+            count = ::ntohl(count);
         }
-        void hton(){
+        inline
+        void 
+        hton(){
             frame.hton();
-            sequence = htonl(sequence);
-            type = htonl(type);
-            name = htonl(name);
-            code = htonl(code);
-            offset = htonl(offset);
-            count = htonl(count);
+            sequence = ::htonl(sequence);
+            type = ::htonl(type);
+            name = ::htonl(name);
+            code = ::htonl(code);
+            offset = ::htonl(offset);
+            count = ::htonl(count);
         }
-        unsigned int get_body_len(){
+        inline
+        unsigned int 
+        get_body_len(){
             return frame.packet_len - sizeof(SIMPLEMSGQ_HEADER);
         }
     };

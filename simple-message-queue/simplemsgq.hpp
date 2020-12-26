@@ -17,7 +17,8 @@
 #include "simplemsgq_server_acceptor.hpp"
 #include "simplemsgq_asio_chat_session.hpp"
 
-#include "simplemsgq_client.hpp"
+#include "simplemsgq_client_consumer.hpp"
+#include "simplemsgq_client_producer.hpp"
 
 #include "simplemsgq_asio_custom_session.hpp"
 // #include "simplemsgq_simqclient.hpp"

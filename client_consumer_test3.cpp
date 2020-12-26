@@ -4,7 +4,7 @@
 
 #include "simple-message-queue/simplemsgq.hpp"
 
-std::string now_str()
+std::string now_str2()
 {
     // Get current time from the clock, using microseconds resolution
     const boost::posix_time::ptime now = 
@@ -17,7 +17,7 @@ std::string now_str()
     const long minutes      = td.minutes();
     const long seconds      = td.seconds();
     const long milliseconds = td.total_milliseconds() -
-                              ((hours * 3600 + minutes * 60 + seconds) * 1000);
+                            ((hours * 3600 + minutes * 60 + seconds) * 1000);
 
     char buf[40];
     sprintf(buf, "%02ld:%02ld:%02ld.%03ld", 
@@ -26,28 +26,20 @@ std::string now_str()
     return buf;
 }
 
-
 int main(int, char**) {
-
+    auto offset = 0;
+    auto count = 1;
     auto io_service = boost::asio::io_service{1};
-    auto producer = simplemsgq::ClientProducer{io_service, "192.168.0.36", "4444"};
+    auto client = simplemsgq::ClientConsumer{io_service, "192.168.0.36", "5555"};
+    client.init();
 
-    producer.init();
-
-    std::string ss;
-    char buffer[1024] = "";
-    int i = 1;
     
-    std::stringstream index;
-    while(1){
-        // std::cin >> ss;
-        sprintf(buffer, "%016d\n", i);
-        producer.send(buffer, 16 + 1);
-        producer.do_poll(100);
-        // memset(buffer, 0x00, sizeof(buffer));
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
 
+    while(1){
+        client.do_select(0, 1);    
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
     return 0;
 }
 

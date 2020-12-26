@@ -27,9 +27,9 @@ namespace simplemsgq
             boost::asio::ip::tcp::socket & socket, 
             SIMPLEMSGQ_HEADER & header,
             char * body) override{
-            std::cout << "ProducerWorker do_read callback\n";
             if(fm){
                 auto bodylen = header.get_body_len();
+                std::cout << "do_read bodylen:" << bodylen << ", body:" << body << std::endl;
                 (*fm).insert_data(body, bodylen);
                 // TODO SEND RESPONSE
             }

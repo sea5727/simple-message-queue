@@ -19,7 +19,7 @@ namespace simplemsgq{
         void
         do_accept(boost::asio::ip::tcp::socket & socket) override{
             // TODO socket option settiing...
-            std::cout << "ConsumerWorker do_accept callback\n";
+            std::cout << "[" << now_str() << "] Do Accept\n";
         }
 
         void
@@ -27,7 +27,7 @@ namespace simplemsgq{
             boost::asio::ip::tcp::socket & socket, 
             SIMPLEMSGQ_HEADER & header,
             char * body ) override {
-
+            std::cout << "[" << now_str() << "] Do Read Offset : " << header.offset<< ", count : " << header.count << std::endl;
             
             if(fm){
                 auto sendinfo = (*fm).select_data(header.offset, header.count);
@@ -43,27 +43,35 @@ namespace simplemsgq{
                 response.type = header.type;
                 response.name = header.type;
                 response.code = filefd == -1 ? -1 : 0;
-                response.offset = 0;
-                response.count = 0;
+                response.offset = header.offset;
+                response.count = send_size == 0 ? 0 : 1;
 
                 response.hton();
+                std::cout << "[" << now_str() << "]async_write try\n";
+                boost::system::error_code error;
+                auto len = boost::asio::write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), error);
+                std::cout << "[" << now_str() << "] Write len :" << len << ", fd:" << fd << ", error:" << error.message() << std::endl;
+                if(error){ return; }
+                if(send_size <= 0 || filefd == -1) { return ; }
+                // auto fd = socket.native_handle();
+                auto ref_sendposition = send_position;
+                auto result = sendfile(fd, filefd, &ref_sendposition, send_size);
+                std::cout << "[" << now_str() << "] SendFile len : " << result << std::endl;
 
-                std::cout << "send response.sequence : " << response.sequence << std::endl;
-                std::cout << "send response.type : " << response.type << std::endl;
-                std::cout << "send response.name : " << response.name << std::endl;
-                std::cout << "send response.code : " << response.code << std::endl;
-                std::cout << "send response.offset : " << response.offset << std::endl;
-                std::cout << "send response.count : " << response.count << std::endl;
-                // TODO SEND RESPONSE send header
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                boost::asio::async_write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), 
-                    [=](const boost::system::error_code & error, const size_t len){
-                    std::cout << "async_write  :"  << error.message()  << ", len :" << len << std::endl;
-                    if(fd != -1 || error){ return; }
-                    auto ref_sendposition = send_position;
-                    auto result = sendfile(fd, filefd, &ref_sendposition, send_size);
-                    printf("sendfile.. filefd:%d, send_position:%ld, send_size:%d, fd:%d.. result:%d\n", filefd, ref_sendposition, send_size, fd, result);
-                });
+
+
+
+                
+                // boost::asio::async_write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), 
+                //     [=, &socket](const boost::system::error_code & error, const size_t len){
+                //     std::cout << "[" << now_str() << "] Write len :" << len << ", fd:" << fd << ", error:" << error.message() << std::endl;
+                //     if(error){ return; }
+                //     if(send_size <= 0 || filefd == -1) { return ; }
+                //     auto fd = socket.native_handle();
+                //     auto ref_sendposition = send_position;
+                //     auto result = sendfile(fd, filefd, &ref_sendposition, send_size);
+                //     std::cout << "[" << now_str() << "] SendFile len : " << result << std::endl;
+                // });
 
             }
             else {
