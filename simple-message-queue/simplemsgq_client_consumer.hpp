@@ -16,6 +16,7 @@ namespace simplemsgq
         std::string host;
         std::string port;
         char buffer[8096];
+        char send_buffer[8096];
 
     public:
         ClientConsumer() = default;
@@ -40,67 +41,124 @@ namespace simplemsgq
             auto resolver = boost::asio::ip::tcp::resolver{io_service};
             auto query = boost::asio::ip::tcp::resolver::query{host, port};
             auto endpoint_iterator = resolver.resolve(query);
+            auto conn = boost::asio::connect(socket, endpoint_iterator);            
+        }
+        void
+        init_async(){
+            auto resolver = boost::asio::ip::tcp::resolver{io_service};
+            auto query = boost::asio::ip::tcp::resolver::query{host, port};
+            auto endpoint_iterator = resolver.resolve(query);
             auto conn = boost::asio::connect(socket, endpoint_iterator);
-            // socket.non_blocking(true);
-            do_read();
+            
+            do_read_async();
         }
-        void
-        do_read(){
-            boost::asio::async_read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE), 
-                [=](const boost::system::error_code & error, const size_t len){
-                if(error){ // TODO Error Control
-                    throw std::logic_error("async_read fail TODO Error control : " + error.message());
-                }
+        // void
+        // do_read(std::function<void(boost::system::error_code, size_t)> read_body_handler){
+        //     boost::asio::async_read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE), 
+        //         [=](const boost::system::error_code & error, const size_t len){
+        //         if(error){ // TODO Error Control
+        //             throw std::logic_error("async_read fail TODO Error control : " + error.message());
+        //         }
 
-                auto frame = SIMPLEMSGQ_FRAME{buffer}; // copy
+        //         auto frame = SIMPLEMSGQ_FRAME{}; // copy
 
-                if(frame.check()){
-                    frame.ntoh();
-                    auto packet_len = frame.packet_len;
-                    boost::system::error_code ec;
-                    auto len = boost::asio::read(
-                                            socket,  
-                                            boost::asio::buffer(boost::asio::buffer(buffer) + FRAME_SIZE), 
-                                            boost::asio::transfer_exactly(packet_len - FRAME_SIZE), 
-                                            ec);
-
-                    if(ec){ // TODO Error Control
-                        throw std::logic_error("read fail TODO Error control : " + ec.message());
-                    }
-
-                    SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)buffer;
-                    header->ntoh();
-
-                    do_read();
-                }
-                else{
-                    do_read();
-                }
-            });
-        }
+        //         if(frame.check()){
+        //             frame.ntoh();
+        //             auto packet_len = frame.packet_len;
+        //             boost::system::error_code ec;
+        //             boost::asio::async_read( 
+        //                 socket,
+        //                 boost::asio::buffer(boost::asio::buffer(buffer) + FRAME_SIZE),
+        //                 boost::asio::transfer_exactly(packet_len - FRAME_SIZE), 
+        //                 read_body_handler);
+        //         }
+        //         else{
+        //             do_read();
+        //         }
+        //     });
+        // }
 
         void
-        do_select(
+        do_select_block(
             unsigned int offset,
-            unsigned int count){            
-            send_header(offset, count);
+            unsigned int count){     
+            auto result = send_header(offset, count);
+            std::cout << "[" << now_str() << "]send_header result : " << result << std::endl;
+            if(result == 0) return;
+
+            unsigned int packet_len = 0;
+            {
+                boost::system::error_code error;
+                auto len = boost::asio::read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE), error);
+                if(error){
+                    throw std::logic_error("frame read fail " + error.message());
+                }
+                SIMPLEMSGQ_FRAME * frame = (SIMPLEMSGQ_FRAME *) buffer;
+                if(frame->check()){
+                    packet_len = ntohl(frame->packet_len);
+                }
+                std::cout << "[" << now_str() << "]frame read packet_len :" << packet_len << std::endl;
+            }
+
+            {
+                boost::system::error_code error;
+                auto len = boost::asio::read(socket, boost::asio::buffer(buffer) + FRAME_SIZE, boost::asio::transfer_exactly(packet_len - FRAME_SIZE), error);
+                if(error){
+                    throw std::logic_error("body read fail " + error.message());
+                }
+                SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *) buffer;
+                header->ntoh();
+                header->offset;
+                header->count;
+                std::cout << "[" << now_str() << "]body read len :" << len << std::endl;
+            }
+
         }
+
+        void
+        do_select_async(
+            unsigned int offset,
+            unsigned int count){    
+
+            auto result = send_header(offset, count);
+            std::cout << "[" << now_str() << "]send_header result : " << result << std::endl;
+            
+            if(result == 0) return;
+            
+        }
+        void
+        do_read_async(){
+            boost::asio::async_read(socket, boost::asio::buffer(buffer), boost::asio::transfer_exactly(FRAME_SIZE),
+                [this](boost::system::error_code error, size_t len){
+                    if(error){
+                        throw std::logic_error("frame async_read fail " + error.message());
+                    }
+                    SIMPLEMSGQ_FRAME * frame = (SIMPLEMSGQ_FRAME *)buffer;
+                    if(!frame->check()){
+                        throw std::logic_error("frame async_read invalid frame ");
+                    }
+                    auto packet_len = ntohl(frame->packet_len);
+                    auto header_len = boost::asio::read(socket, boost::asio::buffer(buffer) + FRAME_SIZE, boost::asio::transfer_exactly(packet_len - FRAME_SIZE), error);
+                    if(error){
+                        throw std::logic_error("body read fail " + error.message());
+                    }
+                    std::cout << "[" << now_str() << "] read body len : " << header_len << std::endl;
+
+                    do_read_async();
+
+                });
+        }
+
         unsigned int 
         do_poll(unsigned int timeout_milli){
-            auto started = std::chrono::high_resolution_clock::now();
-            auto count = io_service.run_one();
-            auto done = std::chrono::high_resolution_clock::now();
-            std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(done-started).count() << "ms\n";
-            // auto count = io_service.run_one_for(
-            //         std::chrono::milliseconds(timeout_milli));
+            auto count = io_service.run_one_for( std::chrono::milliseconds(timeout_milli));
             return count;
         }
-        void
+        unsigned int
         send_header(
             unsigned int offset,
             unsigned int count){
 
-            char testbuffer[sizeof(SIMPLEMSGQ_HEADER)];
             SIMPLEMSGQ_HEADER request;
             request.init();
             request.frame.packet_len = sizeof(SIMPLEMSGQ_HEADER);
@@ -111,16 +169,19 @@ namespace simplemsgq
             request.offset = offset;
             request.count = count;
             request.hton();
+            
+            memcpy(send_buffer, &request, sizeof(SIMPLEMSGQ_HEADER));
 
-            memcpy(testbuffer, &request, sizeof(SIMPLEMSGQ_HEADER));
-
-            // for(int i = 0 ; i < sizeof(SIMPLEMSGQ_HEADER) ; ++i){
-            //     std::cout << "[" << i << "] : " << (int)testbuffer[i] << std::endl;
-            // }
-            auto write_len = boost::asio::write(socket, 
-                                                boost::asio::buffer(testbuffer));
-            std::cout << "[" << now_str() << "]send packet_len : " << write_len << std::endl;
+            boost::system::error_code error;
+            auto result = boost::asio::write(socket, boost::asio::buffer(&request, sizeof(SIMPLEMSGQ_HEADER)), error);
+            if(error){
+                throw std::logic_error("write fail " + error.message());
+            }
+            return result;
+            
         }
+
+        
 
     };
 }

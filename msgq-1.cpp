@@ -9,20 +9,20 @@ int main(int, char**) {
     auto thread_pool = std::vector<std::thread>{};
 
     auto manager = simplemsgq::FileManagerBuilder::build("/home/ysh8361/msgq/custom");
-    auto producer = simplemsgq::ProducerWorker{manager};
+    // auto producer = simplemsgq::ProducerWorker{manager};
     auto consumer = simplemsgq::ConsumerWorker{manager};
 
 
-    uint16_t i_port = 4444;
-    auto i_io = boost::asio::io_service{1};
-    auto i_work = boost::asio::io_service::work{i_io};
+    // uint16_t i_port = 4444;
+    // auto i_io = boost::asio::io_service{1};
+    // auto i_work = boost::asio::io_service::work{i_io};
 
-    auto i_listener = simplemsgq::ServerAcceptor<simplemsgq::ServerSession>(i_io, i_port);
-    i_listener.run(&producer);
+    // auto i_listener = simplemsgq::ServerAcceptor<simplemsgq::TcpSessionCustom>(i_io, i_port);
+    // i_listener.run(&producer);
 
-    thread_pool.emplace_back([&]{
-        i_io.run();
-    });
+    // thread_pool.emplace_back([&]{
+    //     i_io.run();
+    // });
 
 
 

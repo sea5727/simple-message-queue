@@ -98,7 +98,6 @@ int main(int, char**) {
         std::cout << "[" << i << "] : " << (int)data[i] << std::endl;
     }
 
-
     test.do_write((char *)&header, sizeof(header));
 
     io_service.run();

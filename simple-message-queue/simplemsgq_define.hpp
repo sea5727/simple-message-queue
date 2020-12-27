@@ -39,14 +39,6 @@ namespace simplemsgq
 
     class SIMPLEMSGQ_FRAME{
     public:
-        SIMPLEMSGQ_FRAME(){}
-        SIMPLEMSGQ_FRAME(char * buffer){
-            frame[0] = buffer[0];
-            frame[1] = buffer[1];
-            frame[2] = buffer[2];
-            frame[3] = buffer[3];
-            memcpy(&packet_len, buffer + 4, sizeof(packet_len));
-        }
         char frame[4]; //0xfb, 0xfc, 0xfd
         unsigned int packet_len;
         inline

@@ -10,12 +10,12 @@
 
 namespace simplemsgq
 {
-    class TcpSessionCustom : public std::enable_shared_from_this<TcpSessionCustom>{
+    class ServerSession : public std::enable_shared_from_this<ServerSession>{
     private:
         boost::asio::ip::tcp::socket socket;
         char buffer[8096];
     public:
-        TcpSessionCustom(
+        ServerSession(
             boost::asio::ip::tcp::socket socket)
             : socket{std::move(socket)}
             , buffer{} { }
@@ -35,18 +35,10 @@ namespace simplemsgq
                     }
                     std::cout << "[" << now_str() << "] async_read len:" << len << std::endl;
 
-                    // std::cout << "buffer[4] : " << (int)buffer[4] << std::endl;
-                    // std::cout << "buffer[5] : " << (int)buffer[5] << std::endl;
-                    // std::cout << "buffer[6] : " << (int)buffer[6] << std::endl;
-                    // std::cout << "buffer[7] : " << (int)buffer[7] << std::endl;
+                    SIMPLEMSGQ_FRAME * frame = (SIMPLEMSGQ_FRAME *)buffer;
 
-                    auto frame = SIMPLEMSGQ_FRAME{buffer};
-
-                    if(frame.check()){
-                        std::cout << "before packet_len : " << frame.packet_len << std::endl;
-                        frame.ntoh();
-                        auto packet_len = frame.packet_len;
-                        std::cout << "packet_len : " << packet_len << std::endl;
+                    if(frame->check()){
+                        auto packet_len = ntohl(frame->packet_len);
                         if(packet_len < sizeof(SIMPLEMSGQ_HEADER)){
                             throw std::logic_error("invalid packet len TODO fail control");
                         }
@@ -65,7 +57,7 @@ namespace simplemsgq
             IFWorker * worker, 
             unsigned int bodylen) {
 
-                std::cout << "do_read_body bodylen: " << bodylen << std::endl;
+            std::cout << "do_read_body bodylen: " << bodylen << std::endl;
 
             auto self(shared_from_this());
             boost::asio::async_read( socket,  boost::asio::buffer(boost::asio::buffer(buffer) + FRAME_SIZE), boost::asio::transfer_exactly(bodylen - FRAME_SIZE),
@@ -74,19 +66,27 @@ namespace simplemsgq
                     if(error){
                         throw std::logic_error("TODO Connection Error : " + error.message());
                     }
-                    do_read_frame(worker);
+                    
                     SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)buffer;
-                    // header->frame.packet_len = ntohl(header->frame.packet_len);
-                    // header->sequence = ntohl(header->sequence);
-                    // header->type = ntohl(header->type);
-                    // header->name = ntohl(header->name);
-                    // header->code = ntohl(header->code);
-                    // header->offset = ntohl(header->offset);
-                    // header->count = ntohl(header->count);
-
                     header->ntoh();
 
-                    // worker->do_read(socket, *header, buffer + sizeof(SIMPLEMSGQ_HEADER));
+
+                    // SIMPLEMSGQ_HEADER response;
+                    // response.init();
+                    // response.frame.packet_len = sizeof(SIMPLEMSGQ_HEADER) + 0;
+                    // response.sequence = header->sequence;
+                    // response.type = header->type;
+                    // response.name = header->name;
+                    // response.code = -1;
+                    // response.offset = header->offset;
+                    // response.count = 0;
+
+                    // response.hton();
+                
+                    // boost::system::error_code ec;
+                    // auto slen = boost::asio::write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), ec);
+                    worker->do_read(socket, header, buffer + header->frame.packet_len);
+                    do_read_frame(worker);
                     
                 });
         }

@@ -90,7 +90,7 @@ namespace simplemsgq
                     return; 
                 }
 
-                auto frame = SIMPLEMSGQ_FRAME{buffer}; // copy
+                auto frame = SIMPLEMSGQ_FRAME{}; // copy
 
                 if(frame.check()){
                     frame.ntoh();
