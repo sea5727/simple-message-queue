@@ -24,8 +24,6 @@
 #include "simplemsgq_client_consumer.hpp"
 #include "simplemsgq_client_producer.hpp"
 
-
-
 // #include "simplemsgq_simqclient.hpp"
 
 namespace simplemsgq

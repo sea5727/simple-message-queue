@@ -85,6 +85,8 @@ namespace simplemsgq
                 
                     // boost::system::error_code ec;
                     // auto slen = boost::asio::write(socket, boost::asio::buffer(&response, sizeof(SIMPLEMSGQ_HEADER)), ec);
+
+                    std::cout << "worker do read\n";
                     worker->do_read(socket, header, buffer + header->frame.packet_len);
                     do_read_frame(worker);
                     
