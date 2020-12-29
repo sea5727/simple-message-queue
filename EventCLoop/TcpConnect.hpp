@@ -5,15 +5,14 @@
 namespace EventCLoop
 {
     class TcpConnect{
+    public:
         Epoll & epoll;
         TcpBuffer buffer;
         Event event;
         uint16_t port;
         std::string ip;
         int sessionfd;
-
-        
-    public:
+    
           TcpConnect() = default;
           TcpConnect(Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
@@ -107,13 +106,13 @@ namespace EventCLoop
 
 
         void
-        async_write(char * data, size_t len, std::function<void(Error, int)> callback){
+        async_write(void * data, size_t len, std::function<void(Error & /*error*/, int /*fd*/, ssize_t /*len */)> callback){
             Error error;
             auto result = write(sessionfd, data, len);
             if(result == -1){
                 error = Error{strerror(errno)};
             }
-            callback(error, result);
+            callback(error, sessionfd, result);
         }
 
         void

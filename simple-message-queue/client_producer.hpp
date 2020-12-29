@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EventCLoop/EventCLoop.hpp"
-#include "define.hpp"
+#include "simplemsgq.hpp"
 
 namespace simplemsgq
 {
@@ -30,7 +30,7 @@ namespace simplemsgq
                 std::cout << "[CONNECT] error..." << error.what() << std::endl;
                 auto timer = std::make_shared<EventCLoop::Timer>(epoll);
                 timer->initOneTimer(1, 0);
-                timer->async_wait([=]{
+                timer->async_wait([timer, this](EventCLoop::Error & error) {
                     timer;
                     run();
                 });

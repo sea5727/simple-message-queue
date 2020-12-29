@@ -12,14 +12,8 @@ namespace simplemsgq
         ClientConsumer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
             , connector{epoll, port, ip}  {}
-        
 
-        int
-        connect(){
-            return connector.connect();
-        }
-
-        int
+        void
         send_consume(int offset, int count){
             SIMPLEMSGQ_HEADER request;
             request.init();
@@ -31,16 +25,16 @@ namespace simplemsgq
             request.offset = offset;
             request.count = count;
             request.hton();
-            EventCLoop::Error error;
-            int len = connector.write(&request, sizeof(request), error);
-            if(error){
-                std::cout << "write error : " << error.what() << std::endl;
-            }
-            return len;
+
+            connector.async_write(&request, sizeof(request), 
+                [](EventCLoop::Error & error, int fd, ssize_t len){
+                    if(error){
+                        std::cout << "write error : " << error.what() << std::endl;
+                    }
+                });
+            
         }
         
-        
-
         void
         async_connect(){
             connector.async_connect([this](EventCLoop::Error error){
@@ -53,8 +47,7 @@ namespace simplemsgq
                 std::cout << "[CONNECT] error..." << error.what() << std::endl;
                 auto timer = std::make_shared<EventCLoop::Timer>(epoll);
                 timer->initOneTimer(1, 0);
-                timer->async_wait([=]{
-                    timer;
+                timer->async_wait([timer, this](EventCLoop::Error & error) {
                     async_connect();
                 });
                 return;

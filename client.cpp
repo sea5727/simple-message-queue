@@ -1,6 +1,7 @@
 #include <iostream>
 
-#include "simplemsgq.hpp"
+#include "EventCLoop/EventCLoop.hpp"
+#include "simple-message-queue/simplemsgq.hpp"
 
 int main(int argc, char * argv[]){
 
@@ -12,12 +13,10 @@ int main(int argc, char * argv[]){
     int offset = 0;
     int count = 1;
     
-    consumer.connect();
     consumer.async_read();
     consumer.send_consume(offset, count);
     while(1){
         epoll.Run();
-
     }
 
     return 0;

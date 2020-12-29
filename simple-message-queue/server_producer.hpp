@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EventCLoop/EventCLoop.hpp"
-#include "define.hpp"
+#include "simplemsgq.hpp"
 
 namespace simplemsgq
 {

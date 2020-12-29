@@ -23,8 +23,9 @@
 
 
 #include "define.hpp"
-#include "file_manager.hpp"
 #include "file_manager_builder.hpp"
+#include "file_manager.hpp"
+
 #include "server_consumer.hpp"
 #include "server_producer.hpp"
 #include "client_consumer.hpp"

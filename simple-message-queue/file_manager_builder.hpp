@@ -1,8 +1,7 @@
 #pragma once
 
 
-
-#include "define.hpp"
+#include "simplemsgq.hpp"
 
 
 namespace simplemsgq
