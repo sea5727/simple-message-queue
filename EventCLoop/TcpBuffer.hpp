@@ -1,20 +1,33 @@
 #pragma once
 
-// #include <stdio.h>
+#include <memory.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/timerfd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 
 namespace EventCLoop
 {
     class TcpBuffer{
     private:
-        constexpr static int DEFUALT_SIZE = 16 * 33;
-        int capacity = DEFUALT_SIZE;
+        constexpr static int DEFUALT_SIZE = 16 * 1024;
+        int capacity = 0;
         int reader = 0;
         int writer = 0;
         ssize_t read_len = 0;
         char *pbuf = nullptr;
     public:
-        TcpBuffer() = default;
+        TcpBuffer(int capacity = DEFUALT_SIZE)
+            : capacity{capacity} { }
+
         ~TcpBuffer(){
             free_chunk();
         }

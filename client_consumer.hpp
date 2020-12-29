@@ -12,14 +12,37 @@ namespace simplemsgq
         ClientConsumer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
             , connector{epoll, port, ip}  {}
+        
 
-        void
-        run(){
-            do_connect();
+        int
+        connect(){
+            return connector.connect();
         }
 
+        int
+        send_consume(int offset, int count){
+            SIMPLEMSGQ_HEADER request;
+            request.init();
+            request.frame.packet_len = sizeof(SIMPLEMSGQ_HEADER);
+            request.sequence = 0;
+            request.type = 0;
+            request.name = 0;
+            request.code = 0;
+            request.offset = offset;
+            request.count = count;
+            request.hton();
+            EventCLoop::Error error;
+            int len = connector.write(&request, sizeof(request), error);
+            if(error){
+                std::cout << "write error : " << error.what() << std::endl;
+            }
+            return len;
+        }
+        
+        
+
         void
-        do_connect(){
+        async_connect(){
             connector.async_connect([this](EventCLoop::Error error){
                 handle_connect(error);
             });
@@ -32,16 +55,16 @@ namespace simplemsgq
                 timer->initOneTimer(1, 0);
                 timer->async_wait([=]{
                     timer;
-                    run();
+                    async_connect();
                 });
                 return;
             }
 
-            do_read();
+            async_read();
             //do logic
         }
         void
-        do_read(){
+        async_read(){
             connector.async_read([this](int fd, char * buffer, size_t len){
                 handle_read(fd, buffer, len);
             });
@@ -49,7 +72,7 @@ namespace simplemsgq
         void
         handle_read(int sessionfd, char * buffer, size_t len){
             if(len == 0){
-                run();
+                async_connect();
                 // throw std::runtime_error("TODO retry connect handle_read len == 0");
             }
             std::cout << "[" << sessionfd << "] handle_read len: " << len << std::endl;

@@ -6,13 +6,18 @@ int main(int argc, char * argv[]){
 
     auto epoll = EventCLoop::Epoll{};
 
-    auto server_consumer = simplemsgq::ServerConsumer{epoll, 5555, "192.168.0.36"};
-    auto server_producer = simplemsgq::ServerProducer{epoll, 4444, "192.168.0.36"};
-    server_consumer.run();
-    server_producer.run();
+    auto consumer = simplemsgq::ClientConsumer{epoll, 5555, "192.168.0.36"};
 
+
+    int offset = 0;
+    int count = 1;
+    
+    consumer.connect();
+    consumer.async_read();
+    consumer.send_consume(offset, count);
     while(1){
         epoll.Run();
+
     }
 
     return 0;

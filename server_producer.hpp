@@ -9,12 +9,13 @@ namespace simplemsgq
         EventCLoop::Epoll & epoll;
         EventCLoop::Acceptor acceptor;
         std::map<int, std::shared_ptr<EventCLoop::TcpSession>> sessions;
+        std::shared_ptr<FileManager> fm;
     public:
-        ServerProducer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
+        ServerProducer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip, std::shared_ptr<FileManager> fm)
             : epoll{epoll}
             , acceptor{epoll, port, ip} 
             , sessions{}
-            {}
+            , fm{fm} {}
 
         void
         run(){

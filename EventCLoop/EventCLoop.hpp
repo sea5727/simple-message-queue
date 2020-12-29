@@ -24,9 +24,11 @@
 
 #include "Error.hpp"
 #include "Event.hpp"
+#include "TcpBuffer.hpp"
 #include "Epoll.hpp"
 #include "Acceptor.hpp"
 #include "TcpSession.hpp"
+
 #include "TcpConnect.hpp"
 #include "Timer.hpp"
 

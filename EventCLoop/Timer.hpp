@@ -9,24 +9,25 @@
 namespace EventCLoop
 {
     class Timer{
-        enum class TimerType{
-            OneTimer = 0,
-            IntervalTimer = 1,
-        };
-    public:
         Epoll & epoll;
+        Event event;
         int timerfd;
-        TimerType type;
+    public:
         Timer(Epoll & epoll)
-            : epoll{epoll} {
+            : epoll{epoll}
+            , event{}
+            , timerfd{-1} {
             timerfd = timerfd_create(CLOCK_MONOTONIC, 0);
             if(timerfd == -1)
                 throw std::runtime_error("timerfd_create fail " + std::string{strerror(errno)});
             std::cout << "[TIMER] fd : " << timerfd << std::endl;
         }
         ~Timer(){
+            if(!event.isCleared()){
+                epoll.DelEvent(event.fd);
+                event.clear();
+            }
             std::cout << "[TIMER] Delete Timer..." << std::endl;
-
         }
 
         void
@@ -42,9 +43,8 @@ namespace EventCLoop
             if(timerfd_settime(timerfd, 0, &ts, NULL) < 0){
                 throw std::runtime_error("timerfd_settime fail " + std::string{strerror(errno)});
             }
-            type = TimerType::OneTimer;
         }
-
+        [[deprecated("don't use")]]
         void
         initIntervalTimer(
             unsigned int interval_sec,
@@ -62,27 +62,12 @@ namespace EventCLoop
             if(timerfd_settime(timerfd, 0, &ts, NULL) < 0){
                 throw std::runtime_error("timerfd_settime fail " + std::string{strerror(errno)});
             }
-            type = TimerType::IntervalTimer;
         }
         void
-        async_wait(std::function<void()> callback){
-            auto event = std::make_shared<Event>();
-            event->fd = timerfd;
-            std::cout << "async_wait start?" << std::endl;
-            event->pop = [this, callback](struct epoll_event ev){
-                
-                std::cout << "[TIMER] poll pop!!  ev : " << ev.events << std::endl;
-                uint64_t res;
-                int ret = read(ev.data.fd, &res, sizeof(uint64_t));
-                if(type == TimerType::OneTimer){
-                    auto save = epoll.DelEvent(timerfd);
-                    close(timerfd);
-                }
-                else if(type == TimerType::IntervalTimer){
-                    
-                }
-                callback();
-            };
+        async_wait(std::function<void(Error & )> callback){
+            using std::placeholders::_1;
+            event.fd = timerfd;
+            event.pop = std::bind(&Timer::epoll_pop, this, _1, callback);
 
             struct epoll_event ev;
             ev.data.fd = timerfd;
@@ -90,10 +75,26 @@ namespace EventCLoop
 
             epoll.AddEvent(event, ev);
         }
+
+    private:
         void
-        clear(){
-            auto save = epoll.DelEvent(timerfd);
-            close(timerfd);
+        epoll_pop(const struct epoll_event & ev, std::function<void(Error & )> callback){
+            std::cout << "[TIMER] poll pop!!  ev : " << ev.events << std::endl;
+
+            Error error;
+            if(ev.events & EPOLLERR){
+                error = Error{strerror(errno)};
+            }
+            else {
+                uint64_t res;
+                int ret = read(ev.data.fd, &res, sizeof(uint64_t));
+            }
+
+            epoll.DelEvent(timerfd);
+            event.clear();
+
+            callback(error);
+            
         }
 
 

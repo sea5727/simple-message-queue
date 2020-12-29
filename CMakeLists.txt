@@ -7,9 +7,13 @@ set(CMAKE_CXX_STANDARD 17)
 include(CTest)
 enable_testing()
 
-link_libraries(pthread)
+link_libraries(pthread boost_filesystem)
 
-add_executable(main main.cpp)
+# add_executable(structtest structtest.cpp)
+
+# add_executable(client_consumer_test3 client_consumer_test3.cpp)
+# add_executable(server server.cpp)
+# add_executable(client client.cpp)
 
 
 

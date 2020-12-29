@@ -19,7 +19,7 @@ namespace simplemsgq
             frame[0] = 0xfb;
             frame[1] = 0xfc;
             frame[2] = 0xfd;
-            frame[4] = 0xfe;
+            frame[3] = 0xfe;
             packet_len = 0;
         }
         inline
@@ -27,8 +27,13 @@ namespace simplemsgq
         check(){
             if( (frame[0] & 0xff) == 0xfb && 
                 (frame[1] & 0xff) == 0xfc &&
-                (frame[2] & 0xff) == 0xfd){
+                (frame[2] & 0xff) == 0xfd && 
+                (frame[3] & 0xff) == 0xfe){
                 return true;
+            }
+            std::cout << "frame chaeck fail!!!" << std::endl;
+            for(int i = 0 ; i < 4 ; i++){
+                std::cout << "frame[" << i << "] : " << (int)frame[i] << std::endl;
             }
             return false;
         }
