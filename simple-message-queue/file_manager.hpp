@@ -19,7 +19,7 @@ namespace simplemsgq
                 , mmaps(mmaps) { }
 
 
-        void 
+        ssize_t 
         insert_data(
             const char * buffer, 
             unsigned int len) {
@@ -49,8 +49,10 @@ namespace simplemsgq
                 mmap = std::get<2>(new_mmap);
                 mmaps.emplace_back(new_mmap);
             }
-            write_msgq(fileindex, buffer, len);
+            auto writelen = write_msgq(fileindex, buffer, len);
             update_mmap(mmap, len);
+
+            return writelen;
 
         }
 
@@ -112,7 +114,8 @@ namespace simplemsgq
             return std::make_tuple(filefd, send_position, send_size);
             
         }
-        void write_msgq(
+        ssize_t 
+        write_msgq(
             const unsigned int index, 
             const char * buffer, 
             const unsigned int len){
@@ -130,6 +133,7 @@ namespace simplemsgq
             }
 
             close(fd);
+            return ret;
         }
 
         void 

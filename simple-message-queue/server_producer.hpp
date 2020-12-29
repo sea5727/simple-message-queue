@@ -38,20 +38,21 @@ namespace simplemsgq
 
         void
         handle_read(int sessionfd, char * buffer, size_t len){
-            std::cout << "[" << sessionfd << "] handle_read len: " << len << std::endl;
+            std::cout << "[SERVER_PRODUCER][" << sessionfd << "] handle_read len: " << len << std::endl;
+            auto session = sessions.at(sessionfd);
             if(len == 0){
+                session->clear_session();
                 sessions.erase(sessionfd);
                 return;
             }
-            auto session = sessions.at(sessionfd);
+            
 
             while(1){
-                std::cout << "while start" << std::endl;
                 char * p = nullptr;
                 using std::placeholders::_1;
                 using std::placeholders::_2;
                 auto mylen = session->buffer.dispatch_chunk(p, std::bind(&ServerProducer::dispatch_packet_header, this, _1, _2));
-                std::cout << "[" << sessionfd << "] dispatch_chunk mylen: " << mylen << ", p: " << (void *)p << std::endl;
+                std::cout << "[SERVER_PRODUCER][" << sessionfd << "] dispatch_chunk mylen: " << mylen << ", p: " << (void *)p << std::endl;
 
                 if(mylen == 0) { // TODO Need more
                     break;
@@ -66,8 +67,38 @@ namespace simplemsgq
 
                 SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)p;
                 header->ntoh();
+                auto bodylen = header->get_body_len();
+
+                std::cout << "[SERVER_PRODUCER][RECV] bodylen : " << bodylen << ", offset:" << header->offset << ", count:" << header->count << std::endl;
+
+                if(bodylen > 0 && fm){
+                    char * data = (char *)header + sizeof(SIMPLEMSGQ_HEADER); 
+                    auto ret = (*fm).insert_data(data, bodylen);
+
+                    SIMPLEMSGQ_HEADER response;
+                    response.init();
+                    response.frame.packet_len = sizeof(SIMPLEMSGQ_HEADER);
+                    response.sequence = header->sequence;
+                    response.type = header->type;
+                    response.name = header->name;
+                    response.code = ret == bodylen ? 0 : -1;
+                    response.offset = header->offset;
+                    response.count = header->count;
+                    response.hton();
+
+                    session->async_write(&response, sizeof(SIMPLEMSGQ_HEADER), 
+                        [=](EventCLoop::Error & error, int fd, ssize_t len){
+                            if(error){
+                                std::cout << "[SERVER_PRODUCER] async_write fail " << error.what() << std::endl;
+                                return;
+                            }
+                            std::cout << "[SERVER_PRODUCER] async_write success len:" << len << std::endl;
+                        });
+
+                }
                 
-                std::cout << "[RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
+                
+                
             }
             std::cout << "while exit.." << std::endl;
         }

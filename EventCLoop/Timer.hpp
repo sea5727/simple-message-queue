@@ -23,11 +23,13 @@ namespace EventCLoop
             std::cout << "[TIMER] fd : " << timerfd << std::endl;
         }
         ~Timer(){
+            std::cout << "[TIMER] Delete Timer...fd:" << event.fd << std::endl;
             if(!event.isCleared()){
                 epoll.DelEvent(event.fd);
                 event.clear();
+                close(event.fd);
             }
-            std::cout << "[TIMER] Delete Timer..." << std::endl;
+            
         }
 
         void
@@ -92,6 +94,7 @@ namespace EventCLoop
 
             epoll.DelEvent(timerfd);
             event.clear();
+            close(ev.data.fd);
 
             callback(error);
             

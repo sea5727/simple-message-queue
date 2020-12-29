@@ -1,7 +1,7 @@
 #include <iostream>
 
 
-#include "simplemsgq.hpp"
+#include "simple-message-queue/simplemsgq.hpp"
 
 int main(int argc, char * argv[]){
     std::cout << "Hello world" << std::endl;

@@ -11,11 +11,9 @@ include_directories(.)
 link_directories(.)
 link_libraries(pthread boost_filesystem)
 
-# add_executable(structtest structtest.cpp)
-
-# add_executable(client_consumer_test3 client_consumer_test3.cpp)
 add_executable(server server.cpp)
-add_executable(client client.cpp)
+add_executable(client_consumer client_consumer.cpp)
+add_executable(client_producer client_producer.cpp)
 
 
 

@@ -34,11 +34,12 @@ namespace simplemsgq
             sessions.insert(std::make_pair(sessionfd, session));
             session->async_read([this](int fd, char * buffer, size_t len){
                 std::cout << "[" << fd << "] handle_read len: " << len << std::endl;
+                auto session = sessions.at(fd);
                 if(len == 0){
+                    session->clear_session();
                     sessions.erase(fd);
                     return;
                 }
-                auto session = sessions.at(fd);
 
                 while(1){
                     char * p = nullptr;
@@ -61,7 +62,7 @@ namespace simplemsgq
                     SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)p;
                     header->ntoh();
                     
-                    std::cout << "[RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
+                    std::cout << "[SERVER CONSUMER][RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
 
                     if(fm){
                         auto sendinfo = (*fm).select_data(header->offset, header->count);

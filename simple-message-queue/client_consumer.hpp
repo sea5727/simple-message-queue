@@ -8,10 +8,16 @@ namespace simplemsgq
     class ClientConsumer{
         EventCLoop::Epoll & epoll;
         EventCLoop::TcpConnect connector;
+        std::function<void(EventCLoop::Error & )> connect_callback;
+        std::function<void(int , char *, size_t)> read_callback;
+
+
     public:
         ClientConsumer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
-            , connector{epoll, port, ip}  {}
+            , connector{epoll, port, ip}
+            , connect_callback{nullptr}
+            , read_callback{nullptr} { }
 
         void
         send_consume(int offset, int count){
@@ -34,27 +40,25 @@ namespace simplemsgq
                 });
             
         }
-        
         void
-        async_connect(){
-            connector.async_connect([this](EventCLoop::Error error){
-                handle_connect(error);
-            });
+        set_connect_callback(std::function<void(EventCLoop::Error & )> cb){
+            connect_callback = cb;
         }
         void
-        handle_connect(EventCLoop::Error error){
-            if(error){
-                std::cout << "[CONNECT] error..." << error.what() << std::endl;
-                auto timer = std::make_shared<EventCLoop::Timer>(epoll);
-                timer->initOneTimer(1, 0);
-                timer->async_wait([timer, this](EventCLoop::Error & error) {
-                    async_connect();
-                });
-                return;
-            }
+        set_read_callback(std::function<void(int , char *, size_t)> cb){
+            read_callback = cb;
+        }
 
-            async_read();
-            //do logic
+        void 
+        run(){
+            async_connect();
+        }
+        void
+        async_connect() {
+            connector.async_connect([this](EventCLoop::Error & error){
+                if(connect_callback != nullptr)
+                    connect_callback(error);
+            });
         }
         void
         async_read(){
@@ -62,10 +66,27 @@ namespace simplemsgq
                 handle_read(fd, buffer, len);
             });
         }
+
+    private:
+        void
+        handle_connect(EventCLoop::Error error){
+            if(error){
+                std::cout << "[CONNECT] error..." << error.what() << std::endl;
+                auto timer = std::make_shared<EventCLoop::Timer>(epoll);
+                timer->initOneTimer(1, 0);
+                timer->async_wait([timer, this](EventCLoop::Error & error) {
+                });
+                return;
+            }
+            async_read();
+        }
+
         void
         handle_read(int sessionfd, char * buffer, size_t len){
             if(len == 0){
                 async_connect();
+                return;
+                // async_connect();
                 // throw std::runtime_error("TODO retry connect handle_read len == 0");
             }
             std::cout << "[" << sessionfd << "] handle_read len: " << len << std::endl;
@@ -92,7 +113,10 @@ namespace simplemsgq
                 SIMPLEMSGQ_HEADER * header = (SIMPLEMSGQ_HEADER *)p;
                 header->ntoh();
                 
-                std::cout << "[RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
+                if(read_callback != nullptr)
+                    read_callback(sessionfd, p, mylen);
+                
+                std::cout << "[CLIENT_CONSUMER][RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
             }
             std::cout << "while exit.." << std::endl;
         }
