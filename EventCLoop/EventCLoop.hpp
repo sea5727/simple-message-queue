@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/signalfd.h>
 #include <sys/eventfd.h>
+#include <netinet/tcp.h>
 #include <signal.h>
 #include <unistd.h>
 

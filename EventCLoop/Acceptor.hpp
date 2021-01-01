@@ -11,14 +11,19 @@ namespace EventCLoop
         std::string ip;
         uint16_t port;
         int listenfd;
+
+        bool reuse;
+        bool nodelay;
         
     public:
-        Acceptor(Epoll & epoll, uint16_t port, const std::string ip, bool reuse = true)
+        Acceptor(Epoll & epoll, uint16_t port, const std::string ip, bool reuse = true, bool nodelay = true)
             : epoll{epoll}
             , event{}
             , port{port}
             , ip{ip}
-            , listenfd{-1} {
+            , listenfd{-1}
+            , reuse{reuse}
+            , nodelay{nodelay} {
             
             listenfd = socket(AF_INET, SOCK_STREAM, 0);
             if(listenfd == -1){
@@ -29,6 +34,15 @@ namespace EventCLoop
                 int opt_value = 1;
                 setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_value, sizeof(opt_value));
             }
+
+            if(nodelay){
+                int nOptVal = 1;
+                int ret = setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, (char *)&nOptVal, sizeof(nOptVal));
+                if(ret == -1){
+                    throw std::logic_error(std::string{"Acceptor setsockopt error : "} + std::string{strerror(errno)});
+                }                
+            }
+
 
             struct sockaddr_in _server_addr;
             
@@ -68,6 +82,15 @@ namespace EventCLoop
             auto sessionfd = ::accept(listenfd, (struct sockaddr *)&client_addr, &len);
             if(sessionfd == -1)
                 throw std::logic_error(std::string{"accept fail "} + std::string{strerror(errno)});
+
+            if(nodelay){
+                int nOptVal = 1;
+                int ret = setsockopt(sessionfd, IPPROTO_TCP, TCP_NODELAY, (char *)&nOptVal, sizeof(nOptVal));
+                if(ret == -1){
+                    throw std::logic_error(std::string{"async_accept_pop setsockopt error : "} + std::string{strerror(errno)});
+                }                
+            }
+
 
             int flag = fcntl(sessionfd, F_GETFL, 0);
             fcntl(sessionfd, F_SETFL, flag | O_NONBLOCK);

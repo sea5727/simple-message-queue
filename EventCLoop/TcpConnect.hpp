@@ -36,6 +36,9 @@ namespace EventCLoop
             int flags = fcntl(sessionfd, F_GETFL, 0);
             fcntl(sessionfd, F_SETFL, flags | O_NONBLOCK );
 
+
+ 
+
             struct sockaddr_in server_addr;
             make_sockaddr_struct(server_addr, ip, port);
 

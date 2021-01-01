@@ -13,7 +13,10 @@ namespace EventCLoop
     public:
         TcpConnector(Epoll & epoll)
             : epoll{epoll}
-            , event{} { }
+            , event{} {
+
+
+        }
 
         void
         async_connect(
@@ -28,7 +31,14 @@ namespace EventCLoop
             if(sessionfd < 0){
                 throw std::logic_error("socket create fail" + std::string{strerror(errno)});
             }
-            std::cout << "[CONNECT] fd : " << sessionfd << std::endl;
+
+            if(true){
+                int nOptVal = 1;
+                int ret = setsockopt(sessionfd, IPPROTO_TCP, TCP_NODELAY, (char *)&nOptVal, sizeof(nOptVal));
+                if(ret == -1){
+                    throw std::logic_error(std::string{"TcpConnector setsockopt error : "} + std::string{strerror(errno)});
+                }                
+            }
 
             int flags = fcntl(sessionfd, F_GETFL, 0);
             fcntl(sessionfd, F_SETFL, flags | O_NONBLOCK );

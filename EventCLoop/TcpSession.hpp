@@ -30,7 +30,6 @@ namespace EventCLoop
 
         void
         async_read(std::function<void(int, char *, size_t len)> callback){
-            
             using std::placeholders::_1;
             event.fd = sessionfd;
             event.pop = std::bind(&TcpSession::async_read_pop, this, _1, callback);
@@ -38,7 +37,7 @@ namespace EventCLoop
             struct epoll_event ev;
             ev.data.fd = sessionfd;
             ev.events = EPOLLIN;
-            std::cout << "async_read fd:" << sessionfd << ", AddEvent.. events : " << ev.events << std::endl;
+
             epoll.AddEvent(event, ev);
         }
         void
