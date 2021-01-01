@@ -11,32 +11,18 @@ int main(int argc, char * argv[]){
 
     auto consumer = simplemsgq::ClientConsumer{epoll, 5555, "192.168.0.35"};
 
-
-
-
     consumer.set_connect_callback(
-        [&consumer, &epoll](EventCLoop::Error & error){
-            if(error){
-                std::cout << "[CONNECT] error..." << error.what() << std::endl;
-                auto timer = std::make_shared<EventCLoop::Timer>(epoll);
-                timer->initOneTimer(1, 0);
-                timer->async_wait(
-                    [timer, &consumer](EventCLoop::Error & error) { 
-                        consumer.run();
-                    });
-                return;
-            }
-            consumer.async_read();
+        [&consumer, &epoll](EventCLoop::Error & error, int fd){
+            std::cout << "set_connect_callback!!" << std::endl;
+
             auto sendtimer = std::make_shared<EventCLoop::Timer>(epoll);
             sendtimer->initOneTimer(1, 0);
             sendtimer->async_wait(
-                [sendtimer, &consumer, offset = 0](EventCLoop::Error & error) mutable { 
-                    std::cout << "timer call!! offset : " << offset << std::endl;
-                    consumer.send_consume(offset ++ , 1);
+                [sendtimer, &consumer](EventCLoop::Error & error) mutable { 
+                    consumer.send_consume(0 , 1);
             });
-
         });
-    
+
     consumer.set_read_callback(
         [&epoll, &consumer](int fd, char * buffer, size_t len){
             simplemsgq::SIMPLEMSGQ_HEADER * header = (simplemsgq::SIMPLEMSGQ_HEADER *) buffer;
@@ -50,6 +36,7 @@ int main(int argc, char * argv[]){
                     consumer.send_consume(offset + 1 , 1);
             });
         });
+
     consumer.run();
 
     

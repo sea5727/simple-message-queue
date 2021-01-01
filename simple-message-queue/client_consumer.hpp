@@ -3,21 +3,31 @@
 #include "EventCLoop/EventCLoop.hpp"
 #include "define.hpp"
 
+#include <iostream>
+#include <memory>
+
 namespace simplemsgq
 {
     class ClientConsumer{
         EventCLoop::Epoll & epoll;
-        EventCLoop::TcpConnect connector;
-        std::function<void(EventCLoop::Error & )> connect_callback;
-        std::function<void(int , char *, size_t)> read_callback;
+        std::string ip;
+        uint16_t port;
+        EventCLoop::TcpConnector connector;
+        std::unique_ptr<EventCLoop::TcpSession> session;
+        std::function<void(EventCLoop::Error & /*error*/, int /*fd*/)> connect_callback;
+        std::function<void(int /*fd*/, char * /*buffer*/, size_t /*len*/)> read_callback;
+
+
 
 
     public:
         ClientConsumer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
-            , connector{epoll, port, ip}
+            , ip{ip}
+            , port{port} 
+            , connector{epoll}
             , connect_callback{nullptr}
-            , read_callback{nullptr} { }
+            , read_callback{nullptr}  { }
 
         void
         send_consume(int offset, int count){
@@ -32,71 +42,93 @@ namespace simplemsgq
             request.count = count;
             request.hton();
 
-            connector.async_write(&request, sizeof(request), 
-                [](EventCLoop::Error & error, int fd, ssize_t len){
-                    if(error){
-                        std::cout << "write error : " << error.what() << std::endl;
-                    }
-                });
-            
+            if(session){
+                session->async_write(&request, sizeof(request), 
+                    [offset, count](EventCLoop::Error & error, int fd, ssize_t len){
+                        if(error){
+                            std::cout << "write error : " << error.what() << std::endl;
+                            return;
+                        }
+                        std::cout << "[CLIENT_CONSUMER] send success offset : " << offset << ", count : " << count << std::endl;
+                    });
+            }
+            else {
+                std::cout << "[CLIENT_CONSUMER] send fail because : session closed " << std::endl;
+            }
         }
+  
         void
-        set_connect_callback(std::function<void(EventCLoop::Error & )> cb){
+        set_connect_callback(std::function<void(EventCLoop::Error & /*error*/, int /*fd*/)> cb){
             connect_callback = cb;
         }
         void
-        set_read_callback(std::function<void(int , char *, size_t)> cb){
+        set_read_callback(std::function<void(int /*fd*/, char * /*buffer*/, size_t /*len*/)> cb){
             read_callback = cb;
         }
+
 
         void 
         run(){
             async_connect();
         }
-        void
-        async_connect() {
-            connector.async_connect([this](EventCLoop::Error & error){
+        void 
+        async_connect(){
+            connector.async_connect(ip, port, 
+                [this](EventCLoop::Error & error, int fd){
+
+                if(error){
+                    std::cout << "[CONNECT] retry connect because : " << error.what() << std::endl;
+                    do_reconnect_with_interval(1, 0);
+                    return;
+                }
+
                 if(connect_callback != nullptr)
-                    connect_callback(error);
-            });
-        }
-        void
-        async_read(){
-            connector.async_read([this](int fd, char * buffer, size_t len){
-                handle_read(fd, buffer, len);
-            });
+                    connect_callback(error, fd);
+                session = std::make_unique<EventCLoop::TcpSession>(epoll, fd);
+
+                do_read();
+                
+                });
         }
 
-    private:
+
         void
-        handle_connect(EventCLoop::Error error){
-            if(error){
-                std::cout << "[CONNECT] error..." << error.what() << std::endl;
-                auto timer = std::make_shared<EventCLoop::Timer>(epoll);
-                timer->initOneTimer(1, 0);
-                timer->async_wait([timer, this](EventCLoop::Error & error) {
+        do_reconnect_with_interval(unsigned int sec, unsigned int nsec){
+            auto timer = std::make_shared<EventCLoop::Timer>(epoll);
+            timer->initOneTimer(sec, nsec);
+            timer->async_wait(
+                [timer, this](EventCLoop::Error & error) { 
+                    async_connect();
                 });
-                return;
-            }
-            async_read();
         }
+        void
+        do_read(){
+            session->async_read(
+                [this](int fd, char * buffer, size_t len){
+                    std::cout << "read... fd : " << fd << ", len : " << len << std::endl;
+                    if(len == 0){
+                        std::cout << "[CONNECT] retry connect because : closed peer " << std::endl;
+                        session.reset();
+                        do_reconnect_with_interval(1, 0);
+                        return;
+                    }
+                    handle_read(fd, buffer, len);
+                });
+        }
+
+
+    private:
 
         void
         handle_read(int sessionfd, char * buffer, size_t len){
-            if(len == 0){
-                async_connect();
-                return;
-                // async_connect();
-                // throw std::runtime_error("TODO retry connect handle_read len == 0");
-            }
+
             std::cout << "[" << sessionfd << "] handle_read len: " << len << std::endl;
 
             while(1){
-                std::cout << "while start" << std::endl;
                 char * p = nullptr;
                 using std::placeholders::_1;
                 using std::placeholders::_2;
-                auto mylen = connector.buffer.dispatch_chunk(p, std::bind(&ClientConsumer::dispatch_packet_header, this, _1, _2));
+                auto mylen = session->buffer.dispatch_chunk(p, std::bind(&ClientConsumer::dispatch_packet_header, this, _1, _2));
                 std::cout << "[" << sessionfd << "] dispatch_chunk mylen: " << mylen << ", p: " << (void *)p << std::endl;
 
                 if(mylen == 0) { // TODO Need more
@@ -115,10 +147,7 @@ namespace simplemsgq
                 
                 if(read_callback != nullptr)
                     read_callback(sessionfd, p, mylen);
-                
-                std::cout << "[CLIENT_CONSUMER][RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
             }
-            std::cout << "while exit.." << std::endl;
         }
 
         int 

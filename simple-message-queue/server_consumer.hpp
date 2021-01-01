@@ -79,6 +79,9 @@ namespace simplemsgq
                         response.code = filefd == -1 ? -1 : 0;
                         response.offset = header->offset;
                         response.count = send_size == 0 ? 0 : 1;
+
+                        auto offset = response.offset;
+                        auto count = response.count;
                         response.hton();
 
                         session->async_write(&response, sizeof(SIMPLEMSGQ_HEADER), 
@@ -87,6 +90,7 @@ namespace simplemsgq
                                     if(filefd > 0) close(filefd);
                                     return;
                                 }
+                                std::cout << "[SERVER_CONSUMER] send sucess offset : " << offset << ", count : "<< count << std::endl;
                                 if(send_size <= 0 || filefd == -1) { 
                                     return ; 
                                 }

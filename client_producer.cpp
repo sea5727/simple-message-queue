@@ -14,19 +14,8 @@ int main(int argc, char * argv[]){
     auto producer = simplemsgq::ClientProducer{epoll, 4444, "192.168.0.35"};
 
     producer.set_connect_callback(
-        [&producer, &epoll](EventCLoop::Error & error){
-            if(error){
-                std::cout << "[CONNECT] error..." << error.what() << std::endl;
-                auto timer = std::make_shared<EventCLoop::Timer>(epoll);
-                timer->initOneTimer(1, 0);
-                timer->async_wait(
-                    [timer, &producer](EventCLoop::Error & error) { 
-                        producer.run();
-                    });
-                return;
-            }
-            producer.async_read();
-
+        [&producer, &epoll](EventCLoop::Error & error, int fd){
+            std::cout << "set_connect_callback!!" << std::endl;
         });
     
     producer.set_read_callback(

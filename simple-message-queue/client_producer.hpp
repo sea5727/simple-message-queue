@@ -7,14 +7,19 @@ namespace simplemsgq
 {
     class ClientProducer{
         EventCLoop::Epoll & epoll;
-        EventCLoop::TcpConnect connector;
-        std::function<void(EventCLoop::Error & )> connect_callback;
+        std::string ip;
+        uint16_t port;
+        EventCLoop::TcpConnector connector;
+        std::unique_ptr<EventCLoop::TcpSession> session;
+        std::function<void(EventCLoop::Error & /*error*/ , int fd)> connect_callback;
         std::function<void(int , char *, size_t)> read_callback;
 
     public:
         ClientProducer(EventCLoop::Epoll & epoll, uint16_t port, const std::string & ip)
             : epoll{epoll}
-            , connector{epoll, port, ip}
+            , ip{ip}
+            , port{port}
+            , connector{epoll}
             , connect_callback{nullptr}
             , read_callback{nullptr} { }
 
@@ -31,14 +36,13 @@ namespace simplemsgq
             request.count = 1;
             request.hton();
 
-
             struct iovec iovec[2];
             iovec[0].iov_base = &request;
             iovec[0].iov_len = sizeof(SIMPLEMSGQ_HEADER);
             iovec[1].iov_base = data;
             iovec[1].iov_len = datalen;
-
-            connector.async_writev(iovec, 2, 
+            
+            session->async_writev(iovec, 2, 
                 [](EventCLoop::Error & error, int fd, ssize_t len){
                     if(error){
                         std::cout << "write error : " << error.what() << std::endl;
@@ -49,7 +53,7 @@ namespace simplemsgq
             
         }
         void
-        set_connect_callback(std::function<void(EventCLoop::Error & )> cb){
+        set_connect_callback(std::function<void(EventCLoop::Error & /*error*/, int fd )> cb){
             connect_callback = cb;
         }
         void
@@ -64,32 +68,51 @@ namespace simplemsgq
 
         void
         async_connect() {
-            connector.async_connect([this](EventCLoop::Error & error){
+            connector.async_connect(ip, port, 
+                [this](EventCLoop::Error & error, int fd){
+
+                if(error){
+                    std::cout << "[CONNECT] retry connect because : " << error.what() << std::endl;
+                    do_reconnect_with_interval(1, 0);
+                    return;
+                }
                 if(connect_callback != nullptr)
-                    connect_callback(error);
+                    connect_callback(error, fd);
+                session = std::make_unique<EventCLoop::TcpSession>(epoll, fd);
+                do_read();
             });
         }
         void
-        async_read(){
-            connector.async_read([this](int fd, char * buffer, size_t len){
-                handle_read(fd, buffer, len);
-            });
+        do_reconnect_with_interval(unsigned int sec, unsigned int nsec){
+            auto timer = std::make_shared<EventCLoop::Timer>(epoll);
+            timer->initOneTimer(sec, nsec);
+            timer->async_wait(
+                [timer, this](EventCLoop::Error & error) { 
+                    async_connect();
+                });
+        }
+        void
+        do_read(){
+            session->async_read(
+                [this](int fd, char * buffer, size_t len){
+                    std::cout << "read... fd : " << fd << ", len : " << len << std::endl;
+                    if(len == 0){
+                        std::cout << "[CONNECT] retry connect because : closed peer " << std::endl;
+                        session.reset();
+                        do_reconnect_with_interval(1, 0);
+                        return;
+                    }
+                    handle_read(fd, buffer, len);
+                });
         }
     private:
         void
         handle_read(int sessionfd, char * buffer, size_t len){
-            if(len == 0){
-                run();
-                // throw std::runtime_error("TODO retry connect handle_read len == 0");
-            }
-            std::cout << "[" << sessionfd << "] handle_read len: " << len << std::endl;
-
             while(1){
-                std::cout << "while start" << std::endl;
                 char * p = nullptr;
                 using std::placeholders::_1;
                 using std::placeholders::_2;
-                auto mylen = connector.buffer.dispatch_chunk(p, std::bind(&ClientProducer::dispatch_packet_header, this, _1, _2));
+                auto mylen = session->buffer.dispatch_chunk(p, std::bind(&ClientProducer::dispatch_packet_header, this, _1, _2));
                 std::cout << "[" << sessionfd << "] dispatch_chunk mylen: " << mylen << ", p: " << (void *)p << std::endl;
 
                 if(mylen == 0) { // TODO Need more
@@ -111,7 +134,6 @@ namespace simplemsgq
                 
                 std::cout << "[CLIENT_PRODUCER][RECV] offset:" << header->offset << ", count:" << header->count << std::endl;
             }
-            std::cout << "while exit.." << std::endl;
         }
 
         int 
